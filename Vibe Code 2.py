@@ -1,23 +1,65 @@
 import random
 import matplotlib.pyplot as plt
 import pygame
+import math
+
+# Screen setup
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Virus Simulator")
+
+# Colors
+WHITE = (255, 255, 255)
+BLUE = (0, 100, 255)      # Susceptible
+RED = (255, 50, 50)       # Infected
+GREEN = (50, 200, 50)     # Recovered
 
 # Population settings
-population = 200
+population = 200 
 initial_infected = 5
+
+SUSCEPTIBLE = 0
+INFECTED = 1
+RECOVERED = 2
 
 # Disease parameters
 infection_rate = 0.05
 recovery_rate = 0.01
 days = 100
 
+# Simulation settings
+NUM_PEOPLE = 60
+INFECTION_RADIUS = 10
+INFECTION_CHANCE = 0.2
+RECOVERY_CHANCE = 0.002
+SPEED = 2
+
+clock = pygame.time.Clock()
+
+# Main Game Loop
+people = [SUSCEPTIBLE] * 50
+
+# start with one infected
+people[0] = INFECTED
+
+steps = 20
+
+for step in range(steps):
+    people = simulate_step(people)
+
+    infected_count = people.count(INFECTED)
+    print(f"Step {step}: {infected_count} infected")
+
+running = True
+while running:
+    # handle events here
+
+    people = simulate_step(people)
+
+    # draw people here
+
 #Person Class 
 class Person:
-
-    SUSCEPTIBLE = 0
-    INFECTED = 1
-    RECOVERED = 2
-
     def __init__(self, x, y):
         self.x = x
         self.y = y
