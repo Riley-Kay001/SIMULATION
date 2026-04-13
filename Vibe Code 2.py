@@ -1,161 +1,169 @@
-import random
-import matplotlib.pyplot as plt
 import pygame
+import random
 import math
 
-# Screen setup
+
+# Infection Spreading 
+INFECTION_RADIUS = 10
+INFECTION_CHANCE = 0.2  # 20% chance
+
+def spread_infection(people):
+    for i in range(len(people)):
+        for j in range(i + 1, len(people)):
+            p1 = people[i]
+            p2 = people[j]
+
+            dx = p1.x - p2.x
+            dy = p1.y - p2.y
+            distance = math.sqrt(dx**2 + dy**2)
+
+            if distance < 10:
+                if p1.state == "infected" and p2.state == "healthy":
+                    if random.random() < 0.2:
+                        p2.state = "infected"
+
+                elif p2.state == "infected" and p1.state == "healthy":
+                    if random.random() < 0.2:
+                        p1.state = "infected"
+
+
+# Initialize pygame
+pygame.init()
+
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Virus Simulator")
-
-# Colors
-WHITE = (255, 255, 255)
-BLUE = (0, 100, 255)      # Susceptible
-RED = (255, 50, 50)       # Infected
-GREEN = (50, 200, 50)     # Recovered
-
-# Population settings
-population = 200 
-initial_infected = 5
-
-SUSCEPTIBLE = 0
-INFECTED = 1
-RECOVERED = 2
-
-# Disease parameters
-infection_rate = 0.05
-recovery_rate = 0.01
-days = 100
-
-# Simulation settings
-NUM_PEOPLE = 60
-INFECTION_RADIUS = 10
-INFECTION_CHANCE = 0.2
-RECOVERY_CHANCE = 0.002
-SPEED = 2
-
 clock = pygame.time.Clock()
 
-# Main Game Loop
-people = [SUSCEPTIBLE] * 50
+# Colors
+HEALTHY_COLOR = (0, 200, 0)
+INFECTED_COLOR = (200, 0, 0)
+RECOVERING_COLOR = (0, 0, 200)
 
-# start with one infected
-people[0] = INFECTED
-
-steps = 20
-
-for step in range(steps):
-    people = simulate_step(people)
-
-    infected_count = people.count(INFECTED)
-    print(f"Step {step}: {infected_count} infected")
-
-running = True
-while running:
-    # handle events here
-
-    people = simulate_step(people)
-
-    # draw people here
-
-#Person Class 
 class Person:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-
         self.radius = 5
-        self.speed = 1
-
-        self.state = Person.SUSCEPTIBLE
+        self.state = "healthy"
         self.infection_time = 0
 
-    def move(self, width, height):
+        # Random movement direction
+        self.dx = random.uniform(-1, 1)
+        self.dy = random.uniform(-1, 1)
 
-        dx = random.uniform(-self.speed, self.speed)
-        dy = random.uniform(-self.speed, self.speed)
+    def move(self):
+        self.x += self.dx
+        self.y += self.dy
 
-        self.x += dx
-        self.y += dy
+        # Bounce off walls
+        if self.x <= 0 or self.x >= WIDTH:
+            self.dx *= -1
+        if self.y <= 0 or self.y >= HEIGHT:
+            self.dy *= -1
 
-        # keep inside screen
-        self.x = max(0, min(width, self.x))
-        self.y = max(0, min(height, self.y))
-
-    def infect(self):
-        if self.state == Person.SUSCEPTIBLE:
-            self.state = Person.INFECTED
-            self.infection_time = 0
-
-    def update(self, recovery_time):
-
-        if self.state == Person.INFECTED:
+    def update(self):
+        if self.state == "infected":
             self.infection_time += 1
 
-            if self.infection_time > recovery_time:
-                self.state = Person.RECOVERED
-
-    def get_color(self):
-
-        if self.state == Person.SUSCEPTIBLE:
-            return (0, 200, 0)     # green
-
-        if self.state == Person.INFECTED:
-            return (200, 0, 0)     # red
-
-        if self.state == Person.RECOVERED:
-            return (0, 100, 255)   # blue
+            # After some time, recover
+            if self.infection_time > 300:
+                self.state = "recovering"
 
     def draw(self, screen):
+        if self.state == "healthy":
+            color = HEALTHY_COLOR
+        elif self.state == "infected":
+            color = INFECTED_COLOR
+        else:
+            color = RECOVERING_COLOR
 
-        pygame.draw.circle(
-            screen,
-            self.get_color(),
-            (int(self.x), int(self.y)),
-            self.radius
-        )
+        pygame.draw.circle(screen, color, (int(self.x), int(self.y)), self.radius)
 
-# Infect some people initially
-for i in random.sample(range(population), initial_infected):
-    people[i] = INFECTED
+# Create population
+people = [Person(random.randint(0, WIDTH), random.randint(0, HEIGHT)) for _ in range(100)]
 
-susceptible_history = []
-infected_history = []
-recovered_history = []
+# Infect one person initially
+people[0].state = "infected"
 
-for day in range(days):
-    new_people = people.copy()
 
-    for i in range(population):
-        if people[i] == INFECTED:
+# Statistics Class 
+class Statistics:
+    def __init__(self):
+        self.healthy = 0
+        self.infected = 0
+        self.recovering = 0
 
-            # Try infecting others
-            for j in range(population):
-                if people[j] == SUSCEPTIBLE and random.random() < infection_rate:
-                    new_people[j] = INFECTED
+        self.font = pygame.font.SysFont(None, 24)
 
-            # Try recovery
-            if random.random() < recovery_rate:
-                new_people[i] = RECOVERED
+    def update(self, people):
+        # Reset counts
+        self.healthy = 0
+        self.infected = 0
+        self.recovering = 0
 
-    people = new_people
+        # Count states
+        for person in people:
+            if person.state == "healthy":
+                self.healthy += 1
+            elif person.state == "infected":
+                self.infected += 1
+            elif person.state == "recovering":
+                self.recovering += 1
 
-    # Count states
-    s = people.count(SUSCEPTIBLE)
-    i = people.count(INFECTED)
-    r = people.count(RECOVERED)
+    def draw(self, screen):
+        text = f"Healthy: {self.healthy}  Infected: {self.infected}  Recovering: {self.recovering}"
+        img = self.font.render(text, True, (255, 255, 255))
+        screen.blit(img, (10, 10))
 
-    susceptible_history.append(s)
-    infected_history.append(i)
-    recovered_history.append(r)
+        stats = Statistics()
 
-# Plot results
-plt.plot(susceptible_history, label="Susceptible")
-plt.plot(infected_history, label="Infected")
-plt.plot(recovered_history, label="Recovered")
+    while running:
+        screen.fill((30, 30, 30))
 
-plt.xlabel("Days")
-plt.ylabel("People")
-plt.title("Virus Spread Simulation")
-plt.legend()
-plt.show()
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    for person in people:
+        person.move()
+        person.update()
+
+    spread_infection(people)
+
+    # ✅ Update stats
+    stats.update(people)
+
+    for person in people:
+        person.draw(screen)
+
+    # ✅ Draw stats on top
+    stats.draw(screen)
+
+    pygame.display.flip()
+    clock.tick(60)
+
+
+# Main loop
+running = True
+while running:
+    screen.fill((30, 30, 30))
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Update and draw people
+    for person in people:
+        person.move()
+        person.update()
+
+    spread_infection(people)
+    print(spread_infection) 
+
+    for person in people:
+        person.draw(screen)
+
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()
